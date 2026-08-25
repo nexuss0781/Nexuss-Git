@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "manifestVersion": "1.0.0",
+  "kind": "nexuss.application",
+  "id": "nexuss-git",
+  "name": "Nexuss-Git",
+  "shortName": "Git",
+  "description": "A safe, user-friendly repository workspace for GitHub and local Git operations.",
+  "app": {
+    "version": "0.1.0",
+    "icon": {
+      "kind": "asset",
+      "value": "public/icon.svg",
+      "alt": "Nexuss-Git repository mark"
+    },
+    "publisher": {
+      "id": "nexuss0781",
+      "name": "Nexuss"
+    },
+    "classification": "external"
+  },
+  "source": {
+    "type": "github",
+    "repository": "https://github.com/nexuss0781/Nexuss-Git",
+    "ref": "v0.1.0"
+  },
+  "launch": {
+    "surface": "right-window",
+    "entrypoint": "public/index.html",
+    "defaultWidth": 440,
+    "minWidth": 320,
+    "resizable": true,
+    "supportsExpanded": true
+  },
+  "permissions": [
+    "repository.read",
+    "repository.write",
+    "github.repositories.read",
+    "github.commits.read",
+    "github.branches.write",
+    "github.pull_requests.read",
+    "github.pull_requests.write",
+    "github.issues.read",
+    "github.issues.write",
+    "github.actions.read",
+    "github.actions.write",
+    "project.context.read",
+    "window.control"
+  ],
+  "capabilities": [
+    "window.resize",
+    "window.expand",
+    "project.context",
+    "extension.storage",
+    "activity.report",
+    "repository.workspace"
+  ],
+  "compatibility": {
+    "api": {
+      "minVersion": 1,
+      "maxVersion": 1
+    },
+    "runtimes": ["browser", "node"]
+  },
+  "lifecycle": {
+    "updatePolicy": "manual",
+    "uninstallPolicy": "retain-data"
+  }
+}
