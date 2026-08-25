@@ -17,6 +17,16 @@ await workspace.commit("Update application flow");
 await workspace.push({ branch: "feature/app-flow", confirmed: true });
 ```
 
+## Workspace controller
+
+`WorkspaceController` is the UI-facing facade over `GitWorkspace`. It returns a structured `{ ok, data }` or `{ ok, code, message }` response for every operation and provides a combined snapshot containing the current branch, file status, branch list, staged diff, and unstaged diff. Mutations are serialized so two UI actions cannot change the same repository concurrently.
+
+```ts
+const workspace = new WorkspaceController("/workspace/project");
+const snapshot = await workspace.snapshot();
+const staged = await workspace.stage(["src/app.ts"]);
+```
+
 ## Safety boundary
 
 The service never invokes a shell. Git is called through `execFile` with an argument array. Repository paths must remain inside the selected repository root. Branch names are validated before use. Commit messages are bounded to 200 characters. Pushes require an explicit confirmation flag, and direct pushes to `main`, `master`, `production`, and `release` are rejected so collaboration can happen through a review workflow.
