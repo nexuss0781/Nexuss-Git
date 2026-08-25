@@ -2,20 +2,25 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { WorkspaceController } from "./workspaceController.js";
+import { CicdIntegration } from "./cicdIntegration.js";
 
 const port = Number(process.env.PORT || 4174);
 const root = process.env.NEXUSS_REPOSITORY_ROOT ? path.resolve(process.env.NEXUSS_REPOSITORY_ROOT) : process.cwd();
 const workspace = new WorkspaceController(root);
+const cicd = new CicdIntegration(root);
 const publicRoot = path.resolve(process.cwd(), "public");
 
-async function body(request: import("node:http").IncomingMessage): Promise<Record<string, unknown>> {
-  let raw = ""; for await (const chunk of request) raw += chunk; if (raw.length > 32_000) throw new Error("Request is too large."); return raw ? JSON.parse(raw) as Record<string, unknown> : {};
-}
+async function rawBody(request: import("node:http").IncomingMessage): Promise<string> { let raw = ""; for await (const chunk of request) raw += chunk; if (raw.length > 1_000_000) throw new Error("Request is too large."); return raw; }
+async function body(request: import("node:http").IncomingMessage): Promise<Record<string, unknown>> { const raw = await rawBody(request); return raw ? JSON.parse(raw) as Record<string, unknown> : {}; }
 function send(response: import("node:http").ServerResponse, status: number, value: unknown, type = "application/json") { response.writeHead(status, { "content-type": `${type}; charset=utf-8`, "cache-control": "no-store" }); response.end(type === "application/json" ? JSON.stringify(value) : value); }
 async function handle(request: import("node:http").IncomingMessage, response: import("node:http").ServerResponse) {
   const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
   if (request.method === "GET" && url.pathname === "/api/snapshot") return send(response, 200, await workspace.snapshot());
   if (request.method === "GET" && url.pathname === "/api/audit") return send(response, 200, { ok: true, data: await workspace.audit(Number(url.searchParams.get("limit") || 100)) });
+  if (request.method === "POST" && url.pathname === "/api/webhooks/github") { try { const raw = await rawBody(request); if (!cicd.verifySignature(raw, Array.isArray(request.headers["x-hub-signature-256"]) ? request.headers["x-hub-signature-256"][0] : request.headers["x-hub-signature-256"], process.env.GITHUB_WEBHOOK_SECRET)) return send(response, 401, { ok: false, code: "INVALID_SIGNATURE", message: "Webhook signature verification failed." }); const result = await cicd.receive(raw, String(request.headers["x-github-delivery"] || "missing"), String(request.headers["x-github-event"] || "unknown")); return send(response, 200, { ok: true, data: result }); } catch (error) { return send(response, 400, { ok: false, code: "INVALID_WEBHOOK", message: error instanceof Error ? error.message : "Invalid webhook." }); } }
+  if (request.method === "GET" && url.pathname === "/api/webhooks/github") return send(response, 200, { ok: true, data: await cicd.listEvents(Number(url.searchParams.get("limit") || 100)) });
+  if (request.method === "GET" && url.pathname === "/api/pipeline/triggers") return send(response, 200, { ok: true, data: await cicd.listTriggers(Number(url.searchParams.get("limit") || 100)) });
+  if (request.method === "POST" && url.pathname === "/api/pipeline/trigger") { try { const input = await body(request); const result = await cicd.trigger(String(input.workflow || ""), String(input.ref || ""), String(input.reason || ""), input.confirmed === true); await workspace.audit(1); return send(response, 200, { ok: true, data: result }); } catch (error) { return send(response, 400, { ok: false, code: "TRIGGER_DENIED", message: error instanceof Error ? error.message : "Trigger denied." }); } }
   if (request.method === "POST" && url.pathname === "/api/preview") { try { const input = await body(request); return send(response, 200, await workspace.preview(String(input.operation || ""), input)); } catch (error) { return send(response, 400, { ok: false, code: "INVALID_REQUEST", message: error instanceof Error ? error.message : "Invalid preview request." }); } }
   if (request.method === "POST" && url.pathname.startsWith("/api/")) {
     try { const input = await body(request); let result;
