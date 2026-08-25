@@ -16,6 +16,7 @@ async function handle(request: import("node:http").IncomingMessage, response: im
   const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
   if (request.method === "GET" && url.pathname === "/api/snapshot") return send(response, 200, await workspace.snapshot());
   if (request.method === "GET" && url.pathname === "/api/audit") return send(response, 200, { ok: true, data: await workspace.audit(Number(url.searchParams.get("limit") || 100)) });
+  if (request.method === "POST" && url.pathname === "/api/preview") { try { const input = await body(request); return send(response, 200, await workspace.preview(String(input.operation || ""), input)); } catch (error) { return send(response, 400, { ok: false, code: "INVALID_REQUEST", message: error instanceof Error ? error.message : "Invalid preview request." }); } }
   if (request.method === "POST" && url.pathname.startsWith("/api/")) {
     try { const input = await body(request); let result;
       if (url.pathname === "/api/branch/create") result = await workspace.createBranch(String(input.name || ""), input.startPoint ? String(input.startPoint) : undefined);

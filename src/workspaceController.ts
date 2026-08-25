@@ -3,6 +3,8 @@ import { AuditJournal, type AuditEvent } from "./auditJournal.js";
 
 export type WorkspaceSnapshot = { branch: string; status: GitFileStatus[]; branches: GitBranch[]; unstagedDiff: GitDiff; stagedDiff: GitDiff };
 export type WorkspaceResponse<T> = { ok: true; data: T } | { ok: false; code: string; message: string };
+export type SafetyPreview = { operation: string; title: string; summary: string; impact: string[]; requiresConfirmation: boolean; allowed: boolean; reason?: string };
+
 
 export class WorkspaceController {
   private readonly git: GitWorkspace;
@@ -18,6 +20,7 @@ export class WorkspaceController {
   }
 
   async audit(limit = 100): Promise<AuditEvent[]> { return this.journal.list(limit); }
+  async preview(operation: string, input: Record<string, unknown> = {}): Promise<WorkspaceResponse<SafetyPreview>> { return this.safe(async () => { const snapshot = await this.snapshot(); if (!snapshot.ok) throw new Error(snapshot.message); const branch = snapshot.data.branch; const protectedBranch = ["main", "master", "production", "release"].includes(branch.toLowerCase()); const paths = Array.isArray(input.paths) ? input.paths.map(String) : []; const message = typeof input.message === "string" ? input.message.trim() : ""; const impact = operation === "push" ? [`Publish branch ${branch || "current"} to ${typeof input.remote === "string" ? input.remote : "origin"}`] : operation === "commit" ? [`Create one local commit from ${snapshot.data.stagedDiff.files.length} staged path(s)`] : operation === "stage" ? [`Stage ${paths.length} selected path(s)`] : operation === "unstage" ? [`Remove ${paths.length} path(s) from the staged set`] : operation === "branch.create" ? [`Create and switch to ${String(input.name || "new branch")}`] : [`Switch the workspace to ${String(input.name || "selected branch")}`]; const requiresConfirmation = operation === "commit" || operation === "push"; const allowed = operation === "push" ? !protectedBranch && Boolean(snapshot.data.branch) : operation === "commit" ? Boolean(message) && snapshot.data.stagedDiff.files.length > 0 : true; const reason = protectedBranch && operation === "push" ? `Direct pushes to ${branch} are blocked.` : operation === "commit" && !message ? "A commit message is required." : operation === "commit" && snapshot.data.stagedDiff.files.length === 0 ? "Stage at least one change first." : undefined; await this.journal.record(`${operation}.preview`, allowed ? "started" : "denied", { requiresConfirmation, allowed }); return { operation, title: requiresConfirmation ? "Review before publishing" : "Review workspace change", summary: impact[0] || "Inspect the proposed workspace change.", impact, requiresConfirmation, allowed, ...(reason ? { reason } : {}) }; }); }
   async createBranch(name: string, startPoint?: string): Promise<WorkspaceResponse<GitResult>> { return this.serial("branch.create", () => this.git.createBranch(name, startPoint), { branch: name }); }
   async switchBranch(name: string): Promise<WorkspaceResponse<GitResult>> { return this.serial("branch.switch", () => this.git.switchBranch(name), { branch: name }); }
   async stage(paths: string[]): Promise<WorkspaceResponse<GitResult>> { return this.serial("stage", () => this.git.stage(paths), { pathCount: paths.length }); }
