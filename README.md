@@ -27,6 +27,18 @@ const snapshot = await workspace.snapshot();
 const staged = await workspace.stage(["src/app.ts"]);
 ```
 
+## Browser workspace
+
+Run the local workspace against a repository with:
+
+```bash
+NEXUSS_REPOSITORY_ROOT=/path/to/repository npm start
+```
+
+Then open `http://127.0.0.1:4174`. The browser surface uses the controller through a small local JSON API. It shows status metrics, branch selection and creation, staged and unstaged files, diff output, commit composition, and a confirmation dialog before a push.
+
+The server routes are `GET /api/snapshot`, `POST /api/branch/create`, `POST /api/branch/switch`, `POST /api/stage`, `POST /api/unstage`, `POST /api/commit`, and `POST /api/push`. The server binds to loopback by default and does not expose repository operations to the network unless deployment configuration explicitly changes that boundary.
+
 ## Safety boundary
 
 The service never invokes a shell. Git is called through `execFile` with an argument array. Repository paths must remain inside the selected repository root. Branch names are validated before use. Commit messages are bounded to 200 characters. Pushes require an explicit confirmation flag, and direct pushes to `main`, `master`, `production`, and `release` are rejected so collaboration can happen through a review workflow.
