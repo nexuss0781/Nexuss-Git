@@ -1,0 +1,16 @@
+{
+  "name": "nexuss-git",
+  "version": "0.1.0",
+  "private": false,
+  "description": "User-friendly GitHub workspace extension for Nexuss-Agent",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}
