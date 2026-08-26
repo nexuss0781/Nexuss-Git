@@ -7,7 +7,7 @@
   "shortName": "Git",
   "description": "A safe, user-friendly repository workspace for GitHub and local Git operations.",
   "app": {
-    "version": "0.1.0",
+    "version": "0.2.0",
     "icon": {
       "kind": "asset",
       "value": "public/icon.svg",
@@ -22,7 +22,7 @@
   "source": {
     "type": "github",
     "repository": "https://github.com/nexuss0781/Nexuss-Git",
-    "ref": "v0.1.0"
+    "ref": "v0.2.0"
   },
   "launch": {
     "surface": "right-window",
